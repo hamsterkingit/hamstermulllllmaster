@@ -194,10 +194,14 @@
       mainContent.style.display = 'block';
     }
 
-    // 비밀번호 설정 시: 로그인 성공(ok:true)할 때만 메인 화면 표시. 그 전에는 계속 로그인 화면만 표시.
+    // 비밀번호가 필요하면: 쿠키 여부와 상관없이 무조건 로그인 화면만 표시. 메인은 로그인 폼 제출 성공 시에만 표시.
     fetch('/api/auth/check', fetchOpts)
       .then(function(r) { return r.json(); })
       .then(function(data) {
+        if (data.passwordRequired) {
+          showLogin();
+          return;
+        }
         if (data.ok) hideLogin();
         else showLogin();
       })
