@@ -1,0 +1,19 @@
+{
+  "name": "domino-inventory-order",
+  "version": "1.0.0",
+  "description": "재고 파악 및 발주서 이메일 자동화 시스템",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.7",
+    "xlsx": "^0.18.5"
+  }
+}

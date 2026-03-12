@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>도미노피자 재고·발주 자동화</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4d;
+      --primary: #e31837;
+      --primary-hover: #c41430;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --success: #3fb950;
+      --warning: #d29922;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    .container { max-width: 1000px; margin: 0 auto; padding: 2rem 1rem; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .subtitle { color: var(--text-muted); margin-bottom: 2rem; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .card h2 { font-size: 1.1rem; margin: 0 0 1rem 0; color: var(--text); }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.65rem 1.2rem; border: none; border-radius: 8px;
+      font-family: inherit; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: background 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary.btn-big { padding: 0.9rem 1.8rem; font-size: 1rem; }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-secondary:hover { background: #3d4d66; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    input[type="file"] { display: none; }
+    .file-label {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.65rem 1.2rem; background: var(--border); color: var(--text);
+      border-radius: 8px; cursor: pointer; font-size: 0.9rem;
+    }
+    .file-label:hover { background: #3d4d66; }
+    .summary { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .summary-item {
+      background: var(--bg); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border);
+    }
+    .summary-item strong { color: var(--primary); }
+    .summary-item.warn strong { color: var(--warning); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-muted); font-weight: 500; }
+    tr:hover { background: rgba(255,255,255,0.03); }
+    tr.order-needed { background: rgba(210, 153, 34, 0.1); }
+    tr.order-needed td { border-left: 3px solid var(--warning); }
+    .status-badge {
+      display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 500;
+    }
+    .status-badge.normal { background: rgba(63, 185, 80, 0.2); color: var(--success); }
+    .status-badge.order { background: rgba(210, 153, 34, 0.2); color: var(--warning); }
+    .alert { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; }
+    .alert-error { background: rgba(227, 24, 55, 0.15); border: 1px solid var(--primary); color: #f0a0a0; }
+    .alert-success { background: rgba(63, 185, 80, 0.15); border: 1px solid var(--success); color: #8fdc9e; }
+    .email-info { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .tab { padding: 0.5rem 1rem; border-radius: 8px; background: var(--border); color: var(--text); cursor: pointer; font-size: 0.9rem; border: none; font-family: inherit; }
+    .tab:hover { background: #3d4d66; }
+    .tab.active { background: var(--primary); color: #fff; }
+    .input-table input { width: 100%; min-width: 60px; padding: 0.4rem 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 0.85rem; }
+    .input-table th { white-space: nowrap; }
+    .input-table .btn-row { padding: 0.35rem 0.6rem; font-size: 0.8rem; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    #loginOverlay { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+    #loginOverlay.hidden { display: none; }
+    .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; min-width: 280px; }
+    .login-box h2 { margin: 0 0 1rem 0; font-size: 1.1rem; }
+    .login-box input[type="password"] { width: 100%; padding: 0.65rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 1rem; margin-bottom: 1rem; }
+    .login-box .btn { width: 100%; justify-content: center; }
+    .login-box .login-err { color: var(--primary); font-size: 0.85rem; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div id="loginOverlay">
+    <div class="login-box">
+      <h2>팀 비밀번호 입력</h2>
+      <p class="email-info" style="margin-bottom: 1rem;">시스템 사용을 위해 비밀번호를 입력하세요.</p>
+      <form id="loginForm">
+        <input type="password" id="loginPassword" placeholder="비밀번호" autocomplete="current-password" required>
+        <button type="submit" class="btn btn-primary">입장</button>
+      </form>
+      <p id="loginErr" class="login-err"></p>
+    </div>
+  </div>
+  <div class="container" id="mainContent" style="display: none;">
+    <h1>도미노피자 재고·발주 자동화</h1>
+    <p class="subtitle">엑셀만 올리고 <strong>발주 자동 보내기</strong> 한 번에 담당자에게 메일 발송 (항목마다 자동 발송)</p>
+    <p class="email-info" style="margin-top: -1rem;">엑셀 업로드 · 셀 입력 · 발주 자동 메일 발송</p>
+
+    <div class="card">
+      <h2>1. 데이터 넣기</h2>
+      <div class="tabs">
+        <button type="button" class="tab active" data-tab="excel">엑셀 올리기</button>
+        <button type="button" class="tab" data-tab="input">직접 입력 (셀 입력)</button>
+      </div>
+      <div id="panelExcel" class="panel active">
+        <div class="actions">
+          <label class="file-label" for="fileExcel">엑셀 파일 선택</label>
+          <input type="file" id="fileExcel" accept=".xlsx,.xls">
+          <button type="button" class="btn btn-secondary" id="btnAnalyze">기본 파일로 분석</button>
+        </div>
+      </div>
+      <div id="panelInput" class="panel">
+        <p class="email-info" style="margin-bottom: 0.75rem;">아래 셀에 재고 데이터를 입력한 뒤 [입력 데이터로 분석]을 누르세요.</p>
+        <div style="overflow-x: auto;">
+          <table class="input-table" id="inputTable">
+            <thead>
+              <tr>
+                <th>품목코드</th><th>재료명</th><th>규격</th><th>단위</th>
+                <th>현재재고</th><th>안전재고</th><th>MOQ</th><th>거래처</th><th>담당자 이메일</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="inputBody"></tbody>
+          </table>
+        </div>
+        <div class="actions" style="margin-top: 0.75rem;">
+          <button type="button" class="btn btn-secondary" id="btnAddRow">행 추가</button>
+          <button type="button" class="btn btn-primary" id="btnAnalyzeInput">입력 데이터로 분석</button>
+        </div>
+      </div>
+      <p class="email-info" style="margin-top: 1rem;">수신: kanglim2@naver.com · 담당자 이메일 비우면 해당 주소로 발송</p>
+      <button type="button" class="btn btn-secondary" id="btnCheckEmail">메일 설정 확인</button>
+    </div>
+
+    <div id="alertBox"></div>
+
+    <div class="card" id="summaryCard" style="display: none;">
+      <h2>2. 분석 결과</h2>
+      <div class="summary">
+        <div class="summary-item">총 품목: <strong id="totalCount">0</strong></div>
+        <div class="summary-item warn">발주 필요: <strong id="orderCount">0</strong></div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn-primary btn-big" id="btnSendAuto">발주 자동 보내기</button>
+      </div>
+      <p class="email-info">클릭하면 발주 필요한 항목마다 담당자에게 메일이 자동 발송됩니다.</p>
+    </div>
+
+    <div class="card" id="tableCard" style="display: none;">
+      <h2>재고 현황</h2>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>품목코드</th><th>재료명</th><th>규격</th><th>단위</th>
+              <th>현재재고</th><th>안전재고</th><th>MOQ</th><th>거래처</th>
+              <th>부족</th><th>발주권장</th><th>상태</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const loginOverlay = document.getElementById('loginOverlay');
+    const mainContent = document.getElementById('mainContent');
+    const fetchOpts = { credentials: 'include' };
+
+    function showLogin() {
+      loginOverlay.classList.remove('hidden');
+      mainContent.style.display = 'none';
+    }
+    function hideLogin() {
+      loginOverlay.classList.add('hidden');
+      mainContent.style.display = 'block';
+    }
+
+    fetch('/api/auth/check', fetchOpts)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) hideLogin();
+        else showLogin();
+      })
+      .catch(function() { showLogin(); });
+
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var pw = document.getElementById('loginPassword').value;
+      var errEl = document.getElementById('loginErr');
+      errEl.textContent = '';
+      fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw }),
+        credentials: 'include'
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.ok) { hideLogin(); document.getElementById('loginPassword').value = ''; }
+          else errEl.textContent = data.error || '비밀번호가 올바르지 않습니다.';
+        })
+        .catch(function() { errEl.textContent = '연결 실패'; });
+    });
+
+    const alertBox = document.getElementById('alertBox');
+    const summaryCard = document.getElementById('summaryCard');
+    const tableCard = document.getElementById('tableCard');
+    const tableBody = document.getElementById('tableBody');
+    const totalCount = document.getElementById('totalCount');
+    const orderCount = document.getElementById('orderCount');
+    const btnAnalyze = document.getElementById('btnAnalyze');
+    const btnSendAuto = document.getElementById('btnSendAuto');
+    const fileExcel = document.getElementById('fileExcel');
+    const inputBody = document.getElementById('inputBody');
+    const defaultEmail = 'kanglim2@naver.com';
+    let currentOrders = [];
+
+    function makeInputRow() {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td><input type="text" data-col="code" placeholder="ING001"></td>' +
+        '<td><input type="text" data-col="name" placeholder="재료명"></td>' +
+        '<td><input type="text" data-col="spec" placeholder="규격"></td>' +
+        '<td><input type="text" data-col="unit" placeholder="개"></td>' +
+        '<td><input type="number" data-col="current" placeholder="0" min="0"></td>' +
+        '<td><input type="number" data-col="safety" placeholder="0" min="0"></td>' +
+        '<td><input type="number" data-col="moq" placeholder="0" min="0"></td>' +
+        '<td><input type="text" data-col="supplier" placeholder="거래처"></td>' +
+        '<td><input type="text" data-col="email" placeholder="비우면 ' + defaultEmail + '"></td>' +
+        '<td><button type="button" class="btn btn-secondary btn-row" data-remove>삭제</button></td>';
+      tr.querySelector('[data-remove]').addEventListener('click', function() {
+        if (inputBody.querySelectorAll("tr").length > 1) tr.remove();
+      });
+      return tr;
+    }
+
+    function addInputRow() {
+      inputBody.appendChild(makeInputRow());
+    }
+
+    document.querySelectorAll('.tab').forEach(function(t) {
+      t.addEventListener('click', function() {
+        document.querySelectorAll('.tab').forEach(function(x) { x.classList.remove('active'); });
+        document.querySelectorAll('.panel').forEach(function(x) { x.classList.remove('active'); });
+        this.classList.add('active');
+        document.getElementById('panel' + (this.dataset.tab === 'excel' ? 'Excel' : 'Input')).classList.add('active');
+      });
+    });
+
+    for (var i = 0; i < 3; i++) addInputRow();
+
+    document.getElementById('btnAddRow').addEventListener('click', addInputRow);
+
+    document.getElementById('btnAnalyzeInput').addEventListener('click', function() {
+      var rows = inputBody.querySelectorAll('tr');
+      var items = [];
+      var orders = [];
+      for (var i = 0; i < rows.length; i++) {
+        var inputs = rows[i].querySelectorAll('input');
+        if (!inputs.length) continue;
+        var get = function(col) {
+          var el = rows[i].querySelector('input[data-col="' + col + '"]');
+          return el ? el.value.trim() : '';
+        };
+        var current = parseInt(get('current'), 10) || 0;
+        var safety = parseInt(get('safety'), 10) || 0;
+        var moq = parseInt(get('moq'), 10) || 0;
+        var shortage = Math.max(0, safety - current);
+        var orderQty = current < safety ? Math.max(moq, shortage) : 0;
+        var status = current < safety ? '발주 필요' : '정상';
+        var unit = get('unit') || '';
+        var name = get('name') || '(이름 없음)';
+        var email = get('email') || defaultEmail;
+        var item = {
+          code: get('code'),
+          name: name,
+          spec: get('spec'),
+          unit: unit,
+          current: current,
+          safety: safety,
+          moq: moq,
+          supplier: get('supplier'),
+          shortage: shortage,
+          orderQty: orderQty,
+          status: status,
+          email: email
+        };
+        items.push(item);
+        if (status === '발주 필요') {
+          orders.push({
+            name: name,
+            current: current,
+            safety: safety,
+            unit: unit,
+            orderQty: orderQty,
+            email: email
+          });
+        }
+      }
+      if (!items.length) {
+        showAlert('한 행 이상 입력해 주세요. (재료명, 현재재고, 안전재고 등)');
+        return;
+      }
+      showResult({ items: items, orders: orders, totalItems: items.length, orderCount: orders.length });
+    });
+
+    document.getElementById('btnCheckEmail').addEventListener('click', function() {
+      fetch('/api/check-email', fetchOpts)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          showAlert(data.message || (data.ok ? '설정 정상' : '설정 오류'), data.ok ? 'success' : 'error');
+        })
+        .catch(function() { showAlert('서버에 연결할 수 없습니다. "시작하기.bat"을 먼저 실행하세요.'); });
+    });
+
+    function showAlert(message, type) {
+      alertBox.innerHTML = '<div class="alert alert-' + (type || 'error') + '">' + message + '</div>';
+      alertBox.style.display = 'block';
+    }
+    function clearAlert() { alertBox.innerHTML = ''; alertBox.style.display = 'none'; }
+
+    function renderTable(data) {
+      if (!data.items || !data.items.length) {
+        tableBody.innerHTML = '<tr><td colspan="11">데이터 없음</td></tr>';
+        return;
+      }
+      tableBody.innerHTML = data.items.map(function(row) {
+        var need = row.status === '발주 필요';
+        var cls = need ? 'order' : 'normal';
+        return '<tr class="' + (need ? 'order-needed' : '') + '">' +
+          '<td>' + (row.code || '') + '</td><td>' + (row.name || '') + '</td><td>' + (row.spec || '') + '</td><td>' + (row.unit || '') + '</td>' +
+          '<td>' + (row.current ?? '') + '</td><td>' + (row.safety ?? '') + '</td><td>' + (row.moq ?? '') + '</td><td>' + (row.supplier || '') + '</td>' +
+          '<td>' + (row.shortage ?? '') + '</td><td>' + (row.orderQty ?? '') + '</td>' +
+          '<td><span class="status-badge ' + cls + '">' + (row.status || '') + '</span></td></tr>';
+      }).join('');
+    }
+
+    function showResult(data) {
+      clearAlert();
+      if (data.error) {
+        showAlert(data.error);
+        summaryCard.style.display = 'none';
+        tableCard.style.display = 'none';
+        return;
+      }
+      currentOrders = data.orders || [];
+      totalCount.textContent = data.totalItems ?? data.items.length;
+      orderCount.textContent = data.orderCount ?? currentOrders.length;
+      summaryCard.style.display = 'block';
+      tableCard.style.display = 'block';
+      renderTable(data);
+      // API용: 이메일 없으면 수신 주소로
+      currentOrders.forEach(function(o) {
+        if (!o.email || !String(o.email).trim()) o.email = 'kanglim2@naver.com';
+      });
+    }
+
+    btnAnalyze.addEventListener('click', function() {
+      btnAnalyze.disabled = true;
+      fetch('/api/analyze', fetchOpts)
+        .then(function(r) { return r.json(); })
+        .then(function(data) { showResult(data); })
+        .catch(function() { showAlert('서버 연결 실패. 아래 "시작하기"로 먼저 실행해 주세요.'); })
+        .finally(function() { btnAnalyze.disabled = false; });
+    });
+
+    fileExcel.addEventListener('change', function(e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+      clearAlert();
+      var form = new FormData();
+      form.append('excel', file);
+      btnAnalyze.disabled = true;
+      fetch('/api/upload-analyze', { method: 'POST', body: form, credentials: 'include' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) { showResult(data); })
+        .catch(function() { showAlert('업로드 실패'); })
+        .finally(function() { btnAnalyze.disabled = false; e.target.value = ''; });
+    });
+
+    btnSendAuto.addEventListener('click', function() {
+      if (!currentOrders.length) {
+        showAlert('발주 필요 품목이 없습니다. 엑셀을 먼저 올려 주세요.');
+        return;
+      }
+      var btn = btnSendAuto;
+      btn.disabled = true;
+      btn.textContent = '발송 중…';
+      fetch('/api/send-order-emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orders: currentOrders }),
+        credentials: 'include'
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          btn.disabled = false;
+          btn.textContent = '발주 자동 보내기';
+          var msg = data.message || (data.sent + '건 발송 완료');
+          if (data.error) msg += ' (자세히: ' + data.error + ')';
+          showAlert(msg, data.success ? 'success' : 'error');
+        })
+        .catch(function(e) {
+          btn.disabled = false;
+          btn.textContent = '발주 자동 보내기';
+          showAlert('서버 연결 실패. "시작하기.bat"으로 서버를 켠 뒤 브라우저에서 이 페이지를 열어 주세요. ' + (e.message || ''));
+        });
+    });
+  </script>
+</body>
+</html>
