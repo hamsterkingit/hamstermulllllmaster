@@ -194,13 +194,16 @@
       mainContent.style.display = 'block';
     }
 
-    fetch('/api/auth/check', fetchOpts)
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.ok) hideLogin();
-        else showLogin();
-      })
-      .catch(function() { showLogin(); });
+    // 로그인 화면이 최소 0.5초는 보이도록 한 뒤에 인증 확인 (한 0.1초만에 사라지는 것 방지)
+    setTimeout(function() {
+      fetch('/api/auth/check', fetchOpts)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.ok) hideLogin();
+          else showLogin();
+        })
+        .catch(function() { showLogin(); });
+    }, 500);
 
     document.getElementById('loginForm').addEventListener('submit', function(e) {
       e.preventDefault();

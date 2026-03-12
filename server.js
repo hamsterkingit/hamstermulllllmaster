@@ -19,7 +19,7 @@ const nodemailer = require('nodemailer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const TEAM_PASSWORD = process.env.TEAM_PASSWORD || '';
+const TEAM_PASSWORD = (process.env.TEAM_PASSWORD || process.env.team_password || '').toString().trim();
 function authToken() {
   if (!TEAM_PASSWORD) return '';
   return crypto.createHash('sha256').update(TEAM_PASSWORD).digest('hex');
@@ -299,9 +299,12 @@ app.post('/api/send-order-email', express.json(), (req, res) => {
   const user = process.env.GMAIL_USER;
 
   if (!user || !process.env.GMAIL_APP_PASSWORD) {
+    const hint = process.env.VERCEL
+      ? ' Vercel: Settings → Environment Variables 에 GMAIL_USER, GMAIL_APP_PASSWORD 추가 후 재배포.'
+      : ' 로컬: 프로젝트 폴더에 .env 파일 생성 후 GMAIL_USER, GMAIL_APP_PASSWORD 입력.';
     return res.status(400).json({
       success: false,
-      message: '.env 파일에 GMAIL_USER와 GMAIL_APP_PASSWORD를 넣어주세요. (발신용 Gmail 주소와 앱 비밀번호)',
+      message: 'Gmail 발신 설정이 없습니다.' + hint,
       error: 'Missing credentials',
     });
   }
@@ -332,10 +335,10 @@ app.get('/api/check-email', (req, res) => {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
   if (!user || !pass) {
-    return res.json({
-      ok: false,
-      message: '.env에 GMAIL_USER, GMAIL_APP_PASSWORD가 없습니다. 프로젝트 폴더의 .env 파일을 확인하세요.',
-    });
+    const msg = process.env.VERCEL
+      ? 'Vercel 대시보드 → 프로젝트 → Settings → Environment Variables 에 GMAIL_USER, GMAIL_APP_PASSWORD 를 추가한 뒤 Deploy를 다시 실행하세요.'
+      : '프로젝트 폴더에 .env 파일을 만들고 GMAIL_USER, GMAIL_APP_PASSWORD 를 넣으세요. (.env.example 참고)';
+    return res.json({ ok: false, message: msg });
   }
   const transporter = createTransporter();
   transporter.verify((err) => {
@@ -359,9 +362,12 @@ app.post('/api/send-order-emails', express.json(), (req, res) => {
   const pass = process.env.GMAIL_APP_PASSWORD;
 
   if (!user || !pass) {
+    const hint = process.env.VERCEL
+      ? ' Vercel: 프로젝트 → Settings → Environment Variables 에 GMAIL_USER, GMAIL_APP_PASSWORD 추가 후 재배포.'
+      : ' 로컬: 프로젝트 폴더에 .env 파일 만들고 GMAIL_USER, GMAIL_APP_PASSWORD 입력.';
     return res.status(400).json({
       success: false,
-      message: '.env에 GMAIL_USER, GMAIL_APP_PASSWORD를 설정해 주세요. (프로젝트 폴더에 .env 파일이 있는지 확인)',
+      message: 'Gmail 설정이 없어 메일을 보낼 수 없습니다.' + hint,
       sent: 0,
       failed: orders.length,
       error: 'Missing credentials',

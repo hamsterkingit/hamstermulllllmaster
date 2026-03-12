@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>도미노피자 재고·발주 자동화</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: #0f1419; --surface: #1a2332; --border: #2d3a4d; --primary: #e31837; --text: #e6edf3; --text-muted: #8b949e; --success: #3fb950; --warning: #d29922; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); margin: 0; min-height: 100vh; line-height: 1.5; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 2rem 1rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .subtitle { color: var(--text-muted); margin-bottom: 1.5rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .card h2 { font-size: 1.1rem; margin: 0 0 1rem 0; }
+    .btn { display: inline-flex; align-items: center; padding: 0.65rem 1.2rem; border: none; border-radius: 8px; font-family: inherit; font-size: 0.9rem; font-weight: 500; cursor: pointer; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    input[type="file"] { display: none; }
+    .file-label { display: inline-flex; padding: 0.65rem 1.2rem; background: var(--border); color: var(--text); border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
+    .summary { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .summary-item { background: var(--bg); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); }
+    .summary-item.warn strong { color: var(--warning); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-muted); font-weight: 500; }
+    tr.order-needed { background: rgba(210, 153, 34, 0.1); }
+    .status-badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; }
+    .status-badge.order { background: rgba(210, 153, 34, 0.2); color: var(--warning); }
+    .status-badge.normal { background: rgba(63, 185, 80, 0.2); color: var(--success); }
+    .alert { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; }
+    .alert-error { background: rgba(227, 24, 55, 0.15); border: 1px solid var(--primary); color: #f0a0a0; }
+    .alert-success { background: rgba(63, 185, 80, 0.15); border: 1px solid var(--success); color: #8fdc9e; }
+    .email-info { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>도미노피자 재고·발주 자동화</h1>
+    <p class="subtitle">엑셀 파일을 선택하면 재고를 분석하고, 발주 내용을 복사해서 담당자에게 보낼 수 있습니다.</p>
+    <p class="email-info">수신: <strong>kanglim2@naver.com</strong></p>
+
+    <div class="card">
+      <h2>엑셀 파일 선택</h2>
+      <label class="file-label" for="fileExcel">엑셀 파일 선택 (.xlsx)</label>
+      <input type="file" id="fileExcel" accept=".xlsx,.xls">
+    </div>
+
+    <div id="alertBox"></div>
+
+    <div class="card" id="summaryCard" style="display: none;">
+      <h2>분석 결과</h2>
+      <div class="summary">
+        <div class="summary-item">총 품목: <strong id="totalCount">0</strong></div>
+        <div class="summary-item warn">발주 필요: <strong id="orderCount">0</strong></div>
+      </div>
+      <button type="button" class="btn btn-primary" id="btnCopyBody" style="display: none;">발주 내용 복사</button>
+      <p class="email-info" style="margin-top: 0.75rem;">복사한 뒤 메일에서 kanglim2@naver.com 으로 붙여넣어 보내면 됩니다.</p>
+    </div>
+
+    <div class="card" id="tableCard" style="display: none;">
+      <h2>재고 현황</h2>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>품목코드</th><th>재료명</th><th>규격</th><th>단위</th>
+              <th>현재재고</th><th>안전재고</th><th>MOQ</th><th>거래처</th>
+              <th>부족</th><th>발주권장</th><th>상태</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <script>
+    var INVENTORY_SHEET = 'Inventory';
+    var HEADER_MAP = { '품목코드':'code','재료명':'name','규격':'spec','단위':'unit','현재재고':'current','안전재고':'safety','MOQ':'moq','거래처':'supplier','알림담당자':'manager','거래처이메일':'email','부족수량':'shortage','발주권장수량':'orderQty','상태':'status','담당자알림메시지':'message' };
+    var currentOrders = [];
+
+    function showAlert(msg, type) {
+      document.getElementById('alertBox').innerHTML = '<div class="alert alert-' + (type || 'error') + '">' + msg + '</div>';
+      document.getElementById('alertBox').style.display = 'block';
+    }
+    function clearAlert() { document.getElementById('alertBox').innerHTML = ''; document.getElementById('alertBox').style.display = 'none'; }
+
+    function parseWorkbook(workbook) {
+      var sheet = workbook.Sheets[INVENTORY_SHEET];
+      if (!sheet) return { error: 'Inventory 시트를 찾을 수 없습니다.', items: [], orders: [] };
+      var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      if (rows.length < 2) return { error: '재고 데이터가 없습니다.', items: [], orders: [] };
+      var headers = rows[0], data = [], orders = [];
+      for (var i = 1; i < rows.length; i++) {
+        var row = rows[i], item = {};
+        headers.forEach(function(h, idx) { if (HEADER_MAP[h]) item[HEADER_MAP[h]] = row[idx]; });
+        var current = Number(item.current) || 0, safety = Number(item.safety) || 0, moq = Number(item.moq) || 0;
+        var shortage = Math.max(0, safety - current), orderQty = current < safety ? Math.max(moq, shortage) : 0, status = current < safety ? '발주 필요' : '정상';
+        item.shortage = shortage; item.orderQty = orderQty; item.status = status;
+        data.push(item);
+        if (status === '발주 필요') orders.push({ name: item.name, current: current, safety: safety, unit: item.unit || '', orderQty: orderQty });
+      }
+      return { items: data, orders: orders, totalItems: data.length, orderCount: orders.length };
+    }
+
+    function showResult(data) {
+      clearAlert();
+      if (data.error) { showAlert(data.error); document.getElementById('summaryCard').style.display = 'none'; document.getElementById('tableCard').style.display = 'none'; return; }
+      currentOrders = data.orders || [];
+      document.getElementById('totalCount').textContent = data.totalItems || data.items.length;
+      document.getElementById('orderCount').textContent = data.orderCount || currentOrders.length;
+      document.getElementById('summaryCard').style.display = 'block';
+      document.getElementById('tableCard').style.display = 'block';
+      document.getElementById('btnCopyBody').style.display = currentOrders.length ? 'inline-flex' : 'none';
+      var body = document.getElementById('tableBody');
+      if (!data.items || !data.items.length) { body.innerHTML = '<tr><td colspan="11">데이터 없음</td></tr>'; return; }
+      body.innerHTML = data.items.map(function(row) {
+        var need = row.status === '발주 필요', cls = need ? 'order' : 'normal';
+        return '<tr class="' + (need ? 'order-needed' : '') + '"><td>' + (row.code||'') + '</td><td>' + (row.name||'') + '</td><td>' + (row.spec||'') + '</td><td>' + (row.unit||'') + '</td><td>' + (row.current??'') + '</td><td>' + (row.safety??'') + '</td><td>' + (row.moq??'') + '</td><td>' + (row.supplier||'') + '</td><td>' + (row.shortage??'') + '</td><td>' + (row.orderQty??'') + '</td><td><span class="status-badge ' + cls + '">' + (row.status||'') + '</span></td></tr>';
+      }).join('');
+    }
+
+    document.getElementById('fileExcel').addEventListener('change', function(e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+      clearAlert();
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          var wb = XLSX.read(ev.target.result, { type: 'array', cellDates: true });
+          showResult(parseWorkbook(wb));
+        } catch (err) { showAlert('엑셀 파싱 오류: ' + (err.message || '알 수 없음')); }
+      };
+      reader.readAsArrayBuffer(file);
+      e.target.value = '';
+    });
+
+    document.getElementById('btnCopyBody').addEventListener('click', function() {
+      var body = '안녕하세요.\n도미노피자 재고·발주 자동화에서 아래 품목에 대해 발주 요청드립니다.\n\n';
+      currentOrders.forEach(function(o) { body += '· ' + o.name + ' | 현재 ' + o.current + o.unit + ' | 안전재고 ' + o.safety + o.unit + ' | 권장발주 ' + o.orderQty + o.unit + '\n'; });
+      body += '\n첨부한 발주서 확인 부탁드립니다.\n감사합니다.';
+      navigator.clipboard.writeText(body).then(function() {
+        var btn = document.getElementById('btnCopyBody');
+        btn.textContent = '복사됨!';
+        setTimeout(function() { btn.textContent = '발주 내용 복사'; }, 2000);
+      });
+    });
+  </script>
+</body>
+</html>
