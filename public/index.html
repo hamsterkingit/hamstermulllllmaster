@@ -86,6 +86,9 @@
     .input-table input { width: 100%; min-width: 60px; padding: 0.4rem 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 0.85rem; }
     .input-table th { white-space: nowrap; }
     .input-table .btn-row { padding: 0.35rem 0.6rem; font-size: 0.8rem; }
+    .col-select { width: 2.5rem; text-align: center; }
+    .col-mail { white-space: nowrap; min-width: 6rem; }
+    .btn-mail { padding: 0.35rem 0.6rem; font-size: 0.8rem; white-space: nowrap; }
     .panel { display: none; }
     .panel.active { display: block; }
     #loginOverlay { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; }
@@ -158,7 +161,8 @@
         <div class="summary-item warn">발주 필요: <strong id="orderCount">0</strong></div>
       </div>
       <div class="actions">
-        <button type="button" class="btn btn-primary btn-big" id="btnSendAuto">발주 자동 보내기</button>
+        <button type="button" class="btn btn-primary btn-big" id="btnSendAuto">발주 일괄 보내기</button>
+        <button type="button" class="btn btn-secondary" id="btnSendSelected">선택 항목만 발송</button>
       </div>
       <p class="email-info">클릭하면 발주 필요한 항목마다 담당자에게 메일이 자동 발송됩니다.</p>
       <p class="email-info" style="color: var(--warning);">메일이 안 오면 <strong>스팸함(정크메일)</strong>을 확인하고, Gmail 발신 주소가 수신 허용인지 확인해 보세요.</p>
@@ -170,9 +174,11 @@
         <table>
           <thead>
             <tr>
+              <th class="col-select">선택</th>
               <th>품목코드</th><th>재료명</th><th>규격</th><th>단위</th>
               <th>현재재고</th><th>안전재고</th><th>MOQ</th><th>거래처</th>
               <th>부족</th><th>발주권장</th><th>상태</th>
+              <th class="col-mail">개별 발주</th>
             </tr>
           </thead>
           <tbody id="tableBody"></tbody>
@@ -235,6 +241,7 @@
     const orderCount = document.getElementById('orderCount');
     const btnAnalyze = document.getElementById('btnAnalyze');
     const btnSendAuto = document.getElementById('btnSendAuto');
+    const btnSendSelected = document.getElementById('btnSendSelected');
     const fileExcel = document.getElementById('fileExcel');
     const inputBody = document.getElementById('inputBody');
     const defaultEmail = 'dlrkdfla2@gmail.com';
@@ -345,18 +352,71 @@
 
     function renderTable(data) {
       if (!data.items || !data.items.length) {
-        tableBody.innerHTML = '<tr><td colspan="11">데이터 없음</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="13">데이터 없음</td></tr>';
         return;
       }
+      var orderIdx = 0;
       tableBody.innerHTML = data.items.map(function(row) {
         var need = row.status === '발주 필요';
         var cls = need ? 'order' : 'normal';
-        return '<tr class="' + (need ? 'order-needed' : '') + '">' +
+        var idx = need ? orderIdx++ : -1;
+        var selectCell = need
+          ? '<td class="col-select"><input type="checkbox" class="order-check" data-order-index="' + idx + '" title="발송할 항목 선택"></td>'
+          : '<td class="col-select"></td>';
+        var mailCell = need
+          ? '<td class="col-mail"><button type="button" class="btn btn-primary btn-mail btn-send-one" data-order-index="' + idx + '" title="이 항목만 메일 발송">개별 발주</button></td>'
+          : '<td class="col-mail"></td>';
+        return '<tr class="' + (need ? 'order-needed' : '') + '">' + selectCell +
           '<td>' + (row.code || '') + '</td><td>' + (row.name || '') + '</td><td>' + (row.spec || '') + '</td><td>' + (row.unit || '') + '</td>' +
           '<td>' + (row.current ?? '') + '</td><td>' + (row.safety ?? '') + '</td><td>' + (row.moq ?? '') + '</td><td>' + (row.supplier || '') + '</td>' +
           '<td>' + (row.shortage ?? '') + '</td><td>' + (row.orderQty ?? '') + '</td>' +
-          '<td><span class="status-badge ' + cls + '">' + (row.status || '') + '</span></td></tr>';
+          '<td><span class="status-badge ' + cls + '">' + (row.status || '') + '</span></td>' + mailCell + '</tr>';
       }).join('');
+      tableBody.querySelectorAll('.btn-send-one').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var idx = parseInt(this.getAttribute('data-order-index'), 10);
+          if (isNaN(idx) || !currentOrders[idx]) return;
+          sendOrders([currentOrders[idx]], btn);
+        });
+      });
+    }
+
+    function restoreBtnText(btn) {
+      if (btn === btnSendAuto) btn.textContent = '발주 일괄 보내기';
+      else if (btn === btnSendSelected) btn.textContent = '선택 항목만 발송';
+      else if (btn && btn.classList && btn.classList.contains('btn-send-one')) btn.textContent = '개별 발주';
+    }
+    function sendOrders(orders, btnEl) {
+      if (!orders.length) {
+        showAlert('발송할 항목을 선택해 주세요.');
+        return;
+      }
+      var btn = btnEl || btnSendSelected;
+      btn.disabled = true;
+      btn.textContent = '발송 중…';
+      fetch('/api/send-order-emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orders: orders }),
+        credentials: 'include'
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          btn.disabled = false;
+          restoreBtnText(btn);
+          var msg = data.message || (data.sent + '건 발송 완료');
+          if (data.error) msg += ' (자세히: ' + data.error + ')';
+          if (data.sentTo && data.sentTo.length) {
+            var addrs = data.sentTo.map(function(x) { return x.to; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
+            msg += ' 수신: ' + addrs.join(', ');
+          }
+          showAlert(msg, data.success ? 'success' : 'error');
+        })
+        .catch(function(e) {
+          btn.disabled = false;
+          restoreBtnText(btn);
+          showAlert('서버 연결 실패. ' + (e.message || ''));
+        });
     }
 
     function showResult(data) {
@@ -407,32 +467,25 @@
         showAlert('발주 필요 품목이 없습니다. 엑셀을 먼저 올려 주세요.');
         return;
       }
-      var btn = btnSendAuto;
-      btn.disabled = true;
-      btn.textContent = '발송 중…';
-      fetch('/api/send-order-emails', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orders: currentOrders }),
-        credentials: 'include'
-      })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          btn.disabled = false;
-          btn.textContent = '발주 자동 보내기';
-          var msg = data.message || (data.sent + '건 발송 완료');
-          if (data.error) msg += ' (자세히: ' + data.error + ')';
-          if (data.sentTo && data.sentTo.length) {
-            var addrs = data.sentTo.map(function(x) { return x.to; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
-            msg += ' 수신 주소: ' + addrs.join(', ');
-          }
-          showAlert(msg, data.success ? 'success' : 'error');
-        })
-        .catch(function(e) {
-          btn.disabled = false;
-          btn.textContent = '발주 자동 보내기';
-          showAlert('서버 연결 실패. "시작하기.bat"으로 서버를 켠 뒤 브라우저에서 이 페이지를 열어 주세요. ' + (e.message || ''));
-        });
+      sendOrders(currentOrders, btnSendAuto);
+    });
+
+    btnSendSelected.addEventListener('click', function() {
+      var checked = tableBody.querySelectorAll('.order-check:checked');
+      if (!checked.length) {
+        showAlert('발송할 항목을 체크해 주세요. (발주 필요 행의 선택 칸)');
+        return;
+      }
+      var selected = [];
+      checked.forEach(function(cb) {
+        var idx = parseInt(cb.getAttribute('data-order-index'), 10);
+        if (!isNaN(idx) && currentOrders[idx]) selected.push(currentOrders[idx]);
+      });
+      if (!selected.length) {
+        showAlert('선택한 항목을 찾을 수 없습니다.');
+        return;
+      }
+      sendOrders(selected, btnSendSelected);
     });
   </script>
 </body>
