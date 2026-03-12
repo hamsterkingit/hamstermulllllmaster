@@ -145,7 +145,7 @@
           <button type="button" class="btn btn-primary" id="btnAnalyzeInput">입력 데이터로 분석</button>
         </div>
       </div>
-      <p class="email-info" style="margin-top: 1rem;">수신: kanglim2@naver.com · 담당자 이메일 비우면 해당 주소로 발송</p>
+      <p class="email-info" style="margin-top: 1rem;">수신: dlrkdfla2@gmail.com</p>
       <button type="button" class="btn btn-secondary" id="btnCheckEmail">메일 설정 확인</button>
     </div>
 
@@ -161,6 +161,7 @@
         <button type="button" class="btn btn-primary btn-big" id="btnSendAuto">발주 자동 보내기</button>
       </div>
       <p class="email-info">클릭하면 발주 필요한 항목마다 담당자에게 메일이 자동 발송됩니다.</p>
+      <p class="email-info" style="color: var(--warning);">메일이 안 오면 <strong>스팸함(정크메일)</strong>을 확인하고, Gmail 발신 주소가 수신 허용인지 확인해 보세요.</p>
     </div>
 
     <div class="card" id="tableCard" style="display: none;">
@@ -236,7 +237,7 @@
     const btnSendAuto = document.getElementById('btnSendAuto');
     const fileExcel = document.getElementById('fileExcel');
     const inputBody = document.getElementById('inputBody');
-    const defaultEmail = 'kanglim2@naver.com';
+    const defaultEmail = 'dlrkdfla2@gmail.com';
     let currentOrders = [];
 
     function makeInputRow() {
@@ -374,7 +375,7 @@
       renderTable(data);
       // API용: 이메일 없으면 수신 주소로
       currentOrders.forEach(function(o) {
-        if (!o.email || !String(o.email).trim()) o.email = 'kanglim2@naver.com';
+        if (!o.email || !String(o.email).trim()) o.email = 'dlrkdfla2@gmail.com';
       });
     }
 
@@ -421,6 +422,10 @@
           btn.textContent = '발주 자동 보내기';
           var msg = data.message || (data.sent + '건 발송 완료');
           if (data.error) msg += ' (자세히: ' + data.error + ')';
+          if (data.sentTo && data.sentTo.length) {
+            var addrs = data.sentTo.map(function(x) { return x.to; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
+            msg += ' 수신 주소: ' + addrs.join(', ');
+          }
           showAlert(msg, data.success ? 'success' : 'error');
         })
         .catch(function(e) {

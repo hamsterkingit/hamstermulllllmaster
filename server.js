@@ -2,7 +2,7 @@
  * 도미노 재고·발주 자동화 서버
  * - 엑셀 업로드/로컬 엑셀 파싱
  * - 재고 부족 시 발주 권장 수량 계산
- * - 담당자(kanglim2@naver.com) 메일 발송
+ * - 담당자(dlrkdfla2@gmail.com) 메일 발송
  */
 
 const path = require('path');
@@ -44,7 +44,7 @@ function requireAuth(req, res, next) {
 }
 
 // 담당자 이메일 (발주 알림 수신)
-const ORDER_RECIPIENT_EMAIL = 'kanglim2@naver.com';
+const ORDER_RECIPIENT_EMAIL = 'dlrkdfla2@gmail.com';
 
 // 엑셀 시트 이름 (domino_inventory_training.xlsx 구조)
 const SHEET_NAMES = {
@@ -254,7 +254,7 @@ app.post('/api/upload-analyze', upload.single('excel'), (req, res) => {
 });
 
 /**
- * 메일 발송 (담당자: kanglim2@naver.com)
+ * 메일 발송 (발신/수신: dlrkdfla2@gmail.com)
  * Gmail 사용 시: .env에 GMAIL_USER, GMAIL_APP_PASSWORD 설정 필요
  */
 function createTransporter() {
@@ -397,11 +397,14 @@ app.post('/api/send-order-emails', express.json(), (req, res) => {
 
   const transporter = createTransporter();
   const dateStr = new Date().toLocaleDateString('ko-KR');
+  const fromStr = `"도미노 재고발주" <${user.trim()}>`;
   let sent = 0;
   let failed = 0;
   let firstError = null;
+  const sentTo = [];
+
   const promises = orders.map((o) => {
-    const to = (o.email && String(o.email).trim()) || ORDER_RECIPIENT_EMAIL;
+    const to = ORDER_RECIPIENT_EMAIL;
     const text = `${o.name} 재고 부족 - 현재 ${o.current}${o.unit || ''}, 안전재고 ${o.safety}${o.unit || ''}, 권장발주 ${o.orderQty}${o.unit || ''}`;
     const html = `
       <h2>발주 요청</h2>
@@ -416,13 +419,19 @@ app.post('/api/send-order-emails', express.json(), (req, res) => {
     `;
     return transporter
       .sendMail({
-        from: user.trim(),
+        from: fromStr,
         to: to.trim(),
         subject: `[발주요청] ${o.name} / ${dateStr}`,
         text,
         html,
       })
-      .then(() => { sent++; })
+      .then((info) => {
+        sent++;
+        sentTo.push({ to: to.trim(), messageId: info.messageId || null });
+        if (info.rejected && info.rejected.length) {
+          console.error('Rejected:', to, info.rejected);
+        }
+      })
       .catch((err) => {
         if (!firstError) firstError = err.message || String(err);
         console.error('Send fail:', to, err.message);
@@ -435,11 +444,13 @@ app.post('/api/send-order-emails', express.json(), (req, res) => {
     if (failed > 0) message += `, ${failed}건 실패`;
     if (firstError) message += '. 오류: ' + firstError;
     else message += '.';
+    if (sent > 0) message += ' 메일이 안 오면 수신함·스팸함을 확인해 보세요.';
     res.json({
       success: failed === 0,
       message,
       sent,
       failed,
+      sentTo,
       error: firstError || undefined,
     });
   });
