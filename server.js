@@ -2,7 +2,7 @@
  * 도미노 재고·발주 자동화 서버
  * - 엑셀 업로드/로컬 엑셀 파싱
  * - 재고 부족 시 발주 권장 수량 계산
- * - 담당자(dlrkdfla2@gmail.com) 메일 발송
+ * - 담당자(kanglim2@naver.com) 메일 발송
  */
 
 const path = require('path');
@@ -44,7 +44,7 @@ function requireAuth(req, res, next) {
 }
 
 // 담당자 이메일 (발주 알림 수신)
-const ORDER_RECIPIENT_EMAIL = 'dlrkdfla2@gmail.com';
+const ORDER_RECIPIENT_EMAIL = 'kanglim2@naver.com';
 
 // 엑셀 시트 이름 (domino_inventory_training.xlsx 구조)
 const SHEET_NAMES = {
@@ -254,7 +254,7 @@ app.post('/api/upload-analyze', upload.single('excel'), (req, res) => {
 });
 
 /**
- * 메일 발송 (발신/수신: dlrkdfla2@gmail.com)
+ * 메일 발송 (수신: kanglim2@naver.com)
  * Gmail 사용 시: .env에 GMAIL_USER, GMAIL_APP_PASSWORD 설정 필요
  */
 function createTransporter() {

@@ -148,7 +148,7 @@
           <button type="button" class="btn btn-primary" id="btnAnalyzeInput">입력 데이터로 분석</button>
         </div>
       </div>
-      <p class="email-info" style="margin-top: 1rem;">수신: dlrkdfla2@gmail.com</p>
+      <p class="email-info" style="margin-top: 1rem;">수신: kanglim2@naver.com</p>
       <button type="button" class="btn btn-secondary" id="btnCheckEmail">메일 설정 확인</button>
     </div>
 
@@ -244,7 +244,7 @@
     const btnSendSelected = document.getElementById('btnSendSelected');
     const fileExcel = document.getElementById('fileExcel');
     const inputBody = document.getElementById('inputBody');
-    const defaultEmail = 'dlrkdfla2@gmail.com';
+    const defaultEmail = 'kanglim2@naver.com';
     let currentOrders = [];
 
     function makeInputRow() {
@@ -435,7 +435,7 @@
       renderTable(data);
       // API용: 이메일 없으면 수신 주소로
       currentOrders.forEach(function(o) {
-        if (!o.email || !String(o.email).trim()) o.email = 'dlrkdfla2@gmail.com';
+        if (!o.email || !String(o.email).trim()) o.email = 'kanglim2@naver.com';
       });
     }
 
