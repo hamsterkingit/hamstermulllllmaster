@@ -114,7 +114,8 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 app.use('/api', (req, res, next) => {
-  if (req.path.startsWith('/auth')) return next();
+  const p = (req.path || '').replace(/^\/+/, '');
+  if (p === 'auth' || p.startsWith('auth/')) return next();
   requireAuth(req, res, next);
 });
 
