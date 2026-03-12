@@ -19,14 +19,27 @@ const nodemailer = require('nodemailer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const TEAM_PASSWORD = (process.env.TEAM_PASSWORD || process.env.team_password || '').toString().trim();
+// Vercel 등에서 대소문자 상관없이 팀 비밀번호 읽기
+function getTeamPassword() {
+  const v = process.env.TEAM_PASSWORD || process.env.team_password;
+  if (v && String(v).trim()) return String(v).trim();
+  for (const key of Object.keys(process.env || {})) {
+    if (key.toLowerCase() === 'team_password' && process.env[key]) {
+      return String(process.env[key]).trim();
+    }
+  }
+  return '';
+}
+const TEAM_PASSWORD = getTeamPassword();
 function authToken() {
   if (!TEAM_PASSWORD) return '';
   return crypto.createHash('sha256').update(TEAM_PASSWORD).digest('hex');
 }
 function requireAuth(req, res, next) {
-  if (!TEAM_PASSWORD) return next();
-  if (req.cookies && req.cookies.auth === authToken()) return next();
+  const pwd = getTeamPassword();
+  if (!pwd) return next();
+  const token = crypto.createHash('sha256').update(pwd).digest('hex');
+  if (req.cookies && req.cookies.auth === token) return next();
   res.status(401).json({ error: '로그인이 필요합니다.' });
 }
 
@@ -64,13 +77,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.post('/api/auth/login', (req, res) => {
   const { password } = req.body || {};
-  if (!TEAM_PASSWORD) {
+  const pwd = getTeamPassword();
+  if (!pwd) {
     return res.json({ ok: true });
   }
-  if (password !== TEAM_PASSWORD) {
+  if (String(password || '').trim() !== pwd) {
     return res.status(401).json({ ok: false, error: '비밀번호가 올바르지 않습니다.' });
   }
-  const token = authToken();
+  const token = crypto.createHash('sha256').update(pwd).digest('hex');
   const isProd = process.env.VERCEL || process.env.NODE_ENV === 'production';
   res.cookie('auth', token, {
     httpOnly: true,
@@ -83,13 +97,15 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 app.get('/api/auth/check', (req, res) => {
-  if (!TEAM_PASSWORD) {
-    return res.json({ ok: true });
+  const pwd = getTeamPassword();
+  if (!pwd) {
+    return res.json({ ok: true, passwordRequired: false });
   }
-  if (req.cookies && req.cookies.auth === authToken()) {
-    return res.json({ ok: true });
+  const token = crypto.createHash('sha256').update(pwd).digest('hex');
+  if (req.cookies && req.cookies.auth === token) {
+    return res.json({ ok: true, passwordRequired: true });
   }
-  res.json({ ok: false });
+  res.json({ ok: false, passwordRequired: true });
 });
 
 app.post('/api/auth/logout', (req, res) => {
