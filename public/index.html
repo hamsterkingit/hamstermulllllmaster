@@ -3,53 +3,57 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>도미노피자 재고·발주 자동화</title>
+  <title>🍕 도미노피자 재고·발주 자동화</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0f1419;
-      --surface: #1a2332;
-      --border: #2d3a4d;
+      --bg: #1a0f0f;
+      --surface: #2d1818;
+      --border: #4a2c2c;
       --primary: #e31837;
-      --primary-hover: #c41430;
-      --text: #e6edf3;
-      --text-muted: #8b949e;
-      --success: #3fb950;
-      --warning: #d29922;
+      --primary-hover: #ff4d6a;
+      --text: #f5e6e6;
+      --text-muted: #c4a0a0;
+      --success: #5dd879;
+      --warning: #ffc857;
+      --cheese: #ffd93d;
     }
     * { box-sizing: border-box; }
     body {
       font-family: 'Noto Sans KR', sans-serif;
       background: var(--bg);
+      background-image: radial-gradient(ellipse at 20% 80%, rgba(227,24,55,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(255,217,61,0.06) 0%, transparent 50%);
       color: var(--text);
       margin: 0;
       min-height: 100vh;
       line-height: 1.5;
     }
     .container { max-width: 1000px; margin: 0 auto; padding: 2rem 1rem; }
-    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
     .subtitle { color: var(--text-muted); margin-bottom: 2rem; }
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 16px;
       padding: 1.5rem;
       margin-bottom: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
-    .card h2 { font-size: 1.1rem; margin: 0 0 1rem 0; color: var(--text); }
+    .card h2 { font-size: 1.15rem; margin: 0 0 1rem 0; color: var(--text); }
     .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem; }
     .btn {
       display: inline-flex; align-items: center; gap: 0.5rem;
       padding: 0.65rem 1.2rem; border: none; border-radius: 8px;
-      font-family: inherit; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: background 0.2s;
+      font-family: inherit; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease;
     }
-    .btn-primary { background: var(--primary); color: #fff; }
-    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary { background: var(--primary); color: #fff; border-radius: 12px; }
+    .btn-primary:hover { background: var(--primary-hover); transform: scale(1.02); }
     .btn-primary.btn-big { padding: 0.9rem 1.8rem; font-size: 1rem; }
-    .btn-secondary { background: var(--border); color: var(--text); }
-    .btn-secondary:hover { background: #3d4d66; }
+    .btn-secondary { background: var(--border); color: var(--text); border-radius: 12px; }
+    .btn-secondary:hover { background: #5a3c3c; transform: scale(1.02); }
     .btn:disabled { opacity: 0.6; cursor: not-allowed; }
     input[type="file"] { display: none; }
     .file-label {
@@ -57,11 +61,12 @@
       padding: 0.65rem 1.2rem; background: var(--border); color: var(--text);
       border-radius: 8px; cursor: pointer; font-size: 0.9rem;
     }
-    .file-label:hover { background: #3d4d66; }
+    .file-label:hover { background: #5a3c3c; }
     .summary { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
     .summary-item {
       background: var(--bg); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border);
     }
+    .summary-item { font-size: 1rem; }
     .summary-item strong { color: var(--primary); }
     .summary-item.warn strong { color: var(--warning); }
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
@@ -81,7 +86,7 @@
     .email-info { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem; }
     .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
     .tab { padding: 0.5rem 1rem; border-radius: 8px; background: var(--border); color: var(--text); cursor: pointer; font-size: 0.9rem; border: none; font-family: inherit; }
-    .tab:hover { background: #3d4d66; }
+    .tab:hover { background: #5a3c3c; }
     .tab.active { background: var(--primary); color: #fff; }
     .input-table input { width: 100%; min-width: 60px; padding: 0.4rem 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 0.85rem; }
     .input-table th { white-space: nowrap; }
@@ -93,8 +98,9 @@
     .panel.active { display: block; }
     #loginOverlay { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; }
     #loginOverlay.hidden { display: none; }
-    .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; min-width: 280px; }
-    .login-box h2 { margin: 0 0 1rem 0; font-size: 1.1rem; }
+    .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 2rem; min-width: 280px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+    .login-box h2 { margin: 0 0 1rem 0; font-size: 1.2rem; }
+    .emoji-title { font-size: 2rem; margin-bottom: 0.5rem; }
     .login-box input[type="password"] { width: 100%; padding: 0.65rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 1rem; margin-bottom: 1rem; }
     .login-box .btn { width: 100%; justify-content: center; }
     .login-box .login-err { color: var(--primary); font-size: 0.85rem; margin-top: 0.5rem; }
@@ -103,82 +109,84 @@
 <body>
   <div id="loginOverlay">
     <div class="login-box">
+      <h2 class="emoji-title">🍕 🔒</h2>
       <h2>팀 비밀번호 입력</h2>
-      <p class="email-info" style="margin-bottom: 1rem;">시스템 사용을 위해 비밀번호를 입력하세요.</p>
+      <p class="email-info" style="margin-bottom: 1rem;">재고·발주 시스템 사용을 위해 비밀번호를 입력해 주세요 ✨</p>
       <form id="loginForm">
-        <input type="password" id="loginPassword" placeholder="비밀번호" autocomplete="current-password" required>
-        <button type="submit" class="btn btn-primary">입장</button>
+        <input type="password" id="loginPassword" placeholder="🔑 비밀번호" autocomplete="current-password" required>
+        <button type="submit" class="btn btn-primary">🍕 입장하기</button>
       </form>
       <p id="loginErr" class="login-err"></p>
     </div>
   </div>
   <div class="container" id="mainContent" style="display: none;">
+    <h1 class="emoji-title">🍕 🧀 📦</h1>
     <h1>도미노피자 재고·발주 자동화</h1>
-    <p class="subtitle">엑셀만 올리고 <strong>발주 자동 보내기</strong> 한 번에 담당자에게 메일 발송 (항목마다 자동 발송)</p>
-    <p class="email-info" style="margin-top: -1rem;">엑셀 업로드 · 셀 입력 · 발주 자동 메일 발송</p>
+    <p class="subtitle">엑셀만 올리면 <strong>📧 발주 메일</strong> 한 번에! 담당자에게 깔끔하게 전달돼요 🎉</p>
+    <p class="email-info" style="margin-top: -1rem;">📂 엑셀 업로드 · ✏️ 셀 입력 · 📤 발주 자동 메일 발송</p>
 
     <div class="card">
-      <h2>1. 데이터 넣기</h2>
+      <h2>📋 1. 데이터 넣기</h2>
       <div class="tabs">
-        <button type="button" class="tab active" data-tab="excel">엑셀 올리기</button>
-        <button type="button" class="tab" data-tab="input">직접 입력 (셀 입력)</button>
+        <button type="button" class="tab active" data-tab="excel">📂 엑셀 올리기</button>
+        <button type="button" class="tab" data-tab="input">✏️ 직접 입력 (셀 입력)</button>
       </div>
       <div id="panelExcel" class="panel active">
         <div class="actions">
-          <label class="file-label" for="fileExcel">엑셀 파일 선택</label>
+          <label class="file-label" for="fileExcel">📁 엑셀 파일 선택</label>
           <input type="file" id="fileExcel" accept=".xlsx,.xls">
-          <button type="button" class="btn btn-secondary" id="btnAnalyze">기본 파일로 분석</button>
+          <button type="button" class="btn btn-secondary" id="btnAnalyze">📊 기본 파일로 분석</button>
         </div>
       </div>
       <div id="panelInput" class="panel">
-        <p class="email-info" style="margin-bottom: 0.75rem;">아래 셀에 재고 데이터를 입력한 뒤 [입력 데이터로 분석]을 누르세요.</p>
+        <p class="email-info" style="margin-bottom: 0.75rem;">아래 셀에 재고 데이터를 입력한 뒤 [입력 데이터로 분석]을 눌러 주세요 ✨</p>
         <div style="overflow-x: auto;">
           <table class="input-table" id="inputTable">
             <thead>
               <tr>
-                <th>품목코드</th><th>재료명</th><th>규격</th><th>단위</th>
-                <th>현재재고</th><th>안전재고</th><th>MOQ</th><th>거래처</th><th>담당자 이메일</th><th></th>
+                <th>📌 품목코드</th><th>🧾 재료명</th><th>📐 규격</th><th>📏 단위</th>
+                <th>📦 현재재고</th><th>🛡️ 안전재고</th><th>🔢 MOQ</th><th>🏪 거래처</th><th>📧 담당자 이메일</th><th></th>
               </tr>
             </thead>
             <tbody id="inputBody"></tbody>
           </table>
         </div>
         <div class="actions" style="margin-top: 0.75rem;">
-          <button type="button" class="btn btn-secondary" id="btnAddRow">행 추가</button>
-          <button type="button" class="btn btn-primary" id="btnAnalyzeInput">입력 데이터로 분석</button>
+          <button type="button" class="btn btn-secondary" id="btnAddRow">➕ 행 추가</button>
+          <button type="button" class="btn btn-primary" id="btnAnalyzeInput">📊 입력 데이터로 분석</button>
         </div>
       </div>
-      <p class="email-info" style="margin-top: 1rem;">수신: kanglim2@naver.com</p>
-      <button type="button" class="btn btn-secondary" id="btnCheckEmail">메일 설정 확인</button>
+      <p class="email-info" style="margin-top: 1rem;">📧 수신: kanglim2@naver.com</p>
+      <button type="button" class="btn btn-secondary" id="btnCheckEmail">✉️ 메일 설정 확인</button>
     </div>
 
     <div id="alertBox"></div>
 
     <div class="card" id="summaryCard" style="display: none;">
-      <h2>2. 분석 결과</h2>
+      <h2>📊 2. 분석 결과</h2>
       <div class="summary">
-        <div class="summary-item">총 품목: <strong id="totalCount">0</strong></div>
-        <div class="summary-item warn">발주 필요: <strong id="orderCount">0</strong></div>
+        <div class="summary-item">📦 총 품목: <strong id="totalCount">0</strong></div>
+        <div class="summary-item warn">📤 발주 필요: <strong id="orderCount">0</strong></div>
       </div>
       <div class="actions">
-        <button type="button" class="btn btn-primary btn-big" id="btnSendAuto">발주 일괄 보내기</button>
-        <button type="button" class="btn btn-secondary" id="btnSendSelected">선택 항목만 발송</button>
+        <button type="button" class="btn btn-primary btn-big" id="btnSendAuto">📧 발주 일괄 보내기</button>
+        <button type="button" class="btn btn-secondary" id="btnSendSelected">✅ 선택 항목만 발송</button>
       </div>
-      <p class="email-info">클릭하면 발주 필요한 항목마다 담당자에게 메일이 자동 발송됩니다.</p>
-      <p class="email-info" style="color: var(--warning);">메일이 안 오면 <strong>스팸함(정크메일)</strong>을 확인하고, Gmail 발신 주소가 수신 허용인지 확인해 보세요.</p>
+      <p class="email-info">클릭하면 발주 필요한 항목마다 담당자에게 메일이 자동 발송돼요 🎉</p>
+      <p class="email-info" style="color: var(--warning);">⚠️ 메일이 안 오면 <strong>스팸함(정크메일)</strong>을 확인하고, Gmail 발신 주소가 수신 허용인지 확인해 보세요.</p>
     </div>
 
     <div class="card" id="tableCard" style="display: none;">
-      <h2>재고 현황</h2>
+      <h2>📦 재고 현황</h2>
       <div style="overflow-x: auto;">
         <table>
           <thead>
             <tr>
-              <th class="col-select">선택</th>
+              <th class="col-select">✅</th>
               <th>품목코드</th><th>재료명</th><th>규격</th><th>단위</th>
               <th>현재재고</th><th>안전재고</th><th>MOQ</th><th>거래처</th>
               <th>부족</th><th>발주권장</th><th>상태</th>
-              <th class="col-mail">개별 발주</th>
+              <th class="col-mail">📤 개별 발주</th>
             </tr>
           </thead>
           <tbody id="tableBody"></tbody>
@@ -352,7 +360,7 @@
 
     function renderTable(data) {
       if (!data.items || !data.items.length) {
-        tableBody.innerHTML = '<tr><td colspan="13">데이터 없음</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="13">📭 데이터 없음 · 엑셀을 올리거나 직접 입력해 주세요!</td></tr>';
         return;
       }
       var orderIdx = 0;
@@ -364,13 +372,13 @@
           ? '<td class="col-select"><input type="checkbox" class="order-check" data-order-index="' + idx + '" title="발송할 항목 선택"></td>'
           : '<td class="col-select"></td>';
         var mailCell = need
-          ? '<td class="col-mail"><button type="button" class="btn btn-primary btn-mail btn-send-one" data-order-index="' + idx + '" title="이 항목만 메일 발송">개별 발주</button></td>'
+          ? '<td class="col-mail"><button type="button" class="btn btn-primary btn-mail btn-send-one" data-order-index="' + idx + '" title="이 항목만 메일 발송">📤 개별 발주</button></td>'
           : '<td class="col-mail"></td>';
         return '<tr class="' + (need ? 'order-needed' : '') + '">' + selectCell +
           '<td>' + (row.code || '') + '</td><td>' + (row.name || '') + '</td><td>' + (row.spec || '') + '</td><td>' + (row.unit || '') + '</td>' +
           '<td>' + (row.current ?? '') + '</td><td>' + (row.safety ?? '') + '</td><td>' + (row.moq ?? '') + '</td><td>' + (row.supplier || '') + '</td>' +
           '<td>' + (row.shortage ?? '') + '</td><td>' + (row.orderQty ?? '') + '</td>' +
-          '<td><span class="status-badge ' + cls + '">' + (row.status || '') + '</span></td>' + mailCell + '</tr>';
+          '<td><span class="status-badge ' + cls + '">' + (need ? '📤 ' : '✅ ') + (row.status || '') + '</span></td>' + mailCell + '</tr>';
       }).join('');
       tableBody.querySelectorAll('.btn-send-one').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -382,9 +390,9 @@
     }
 
     function restoreBtnText(btn) {
-      if (btn === btnSendAuto) btn.textContent = '발주 일괄 보내기';
-      else if (btn === btnSendSelected) btn.textContent = '선택 항목만 발송';
-      else if (btn && btn.classList && btn.classList.contains('btn-send-one')) btn.textContent = '개별 발주';
+      if (btn === btnSendAuto) btn.textContent = '📧 발주 일괄 보내기';
+      else if (btn === btnSendSelected) btn.textContent = '✅ 선택 항목만 발송';
+      else if (btn && btn.classList && btn.classList.contains('btn-send-one')) btn.textContent = '📤 개별 발주';
     }
     function sendOrders(orders, btnEl) {
       if (!orders.length) {
@@ -393,7 +401,7 @@
       }
       var btn = btnEl || btnSendSelected;
       btn.disabled = true;
-      btn.textContent = '발송 중…';
+      btn.textContent = '⏳ 발송 중…';
       fetch('/api/send-order-emails', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
